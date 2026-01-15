@@ -1,0 +1,11 @@
+# Ignore all files
+*
+# Unignore all files with an extension
+!*.*
+# Unignore all directories
+!*/
+# Unignore Makefile
+!Makefile
+
+#Unignore .gitignore
+!.gitignore
