@@ -1,6 +1,7 @@
-CFLAGS = -Wall -Wextra -Og -ggdb
+CFLAGS = -Wall -Wextra -O0 -g
 LDFLAGS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -L/usr/local/lib
 IFLAGS = -Iusr/local/include
+CC = gcc
 
 all:
-	gcc -o game src/main.c $(CFLAGS) $(LDFLAGS) $(IFLAGS)
+	$(CC) -o game src/main.c $(CFLAGS) $(LDFLAGS) $(IFLAGS)

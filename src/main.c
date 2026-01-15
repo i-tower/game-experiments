@@ -1,66 +1,97 @@
-#include "raylib.h" 
+#include "raylib.h"
+
+#define TEAM_RED 1
+#define TEAM_BLACK 0
+#define DEFAULT_PADDLE_SIZE {20, 80}
+#define DEFAULT_BALL_SIZE {20, 20}
+
+#define UNUSED(x) (void)(x)
+
+typedef struct Player {
+    Vector2 position;
+    Vector2 paddle_size;
+    Color color;
+} Player;
+
+typedef struct Ball {
+    Vector2 position;
+    Vector2 velocity;
+    Vector2 size;
+    Color color;
+    
+} Ball;
+
+typedef struct GameContext {
+    Vector2 window_size;
+    int round;
+    
+} GameContext;
+
+Player InitPlayer(const GameContext* context, int team);
+Ball InitBall(const GameContext* context);
+
+int main (void) {
 
 
+    const int window_width = 1200;
+    const int window_height = 800;
 
-
-int main(void) {
-    const int window_width = 800; 
-    const int window_height = 450;
-
-    InitWindow(window_width, window_height, "Moving Circles");
-
-    int current_fps = 60;
-
-    Vector2 delta_circle = {0, (float) window_height/3.0f};
-    Vector2 frame_circle = {0, (float) window_height*(2.0f/3.0f)};
-
-    const float speed = 10.0f;
-    const float circle_radius = 32.0f;
-
-    SetTargetFPS(current_fps);
+    InitWindow(window_width, window_height, "Pong");
+    
+    GameContext Context = {
+        .window_size = {window_width, window_height}
+    };
+    
+    Player player1 = InitPlayer(&Context, TEAM_BLACK);
+    Player player2 = InitPlayer(&Context, TEAM_RED);
+    
+    Ball ball = InitBall(&Context);
+    
 
     while(!WindowShouldClose()) {
-        float mouse_wheel = GetMouseWheelMove();
 
-        if (mouse_wheel != 0) {
-            current_fps += mouse_wheel;
-            if (current_fps < 0) current_fps = 0;
-            SetTargetFPS(current_fps);
-        }
-
-
-        delta_circle.x += GetFrameTime()*6.0f*speed;
-
-        frame_circle.x += 0.1f*speed;
-
-        if(delta_circle.x > window_width) delta_circle.x  = 0;
-        if(frame_circle.x > window_width) frame_circle.x = 0;
-
-        if (IsKeyPressed(KEY_R)) {
-            delta_circle.x = 0;
-            frame_circle.x = 0;
-           // current_fps = 60;
-        }
+        ClearBackground(RAYWHITE);
 
         BeginDrawing();
 
-            ClearBackground(RAYWHITE);
+            DrawRectangleV(player1.position, player1.paddle_size, player1.color);
+            DrawRectangleV(player2.position, player2.paddle_size, player2.color);
+            DrawRectangleV(ball.position, ball.size, ball.color);
 
-            DrawCircleV(delta_circle, circle_radius, RED);
-            DrawCircleV(frame_circle, circle_radius, BLUE);
-
-            const char* fps_text = 0;
-            if (current_fps <= 0) fps_text = TextFormat("FPS: unlimited (%i)", GetFPS());
-            else fps_text = TextFormat("FPS: (%i) (target: %i)", GetFPS(), current_fps);
-            DrawText(fps_text, 10, 10, 20, DARKGRAY);
-            DrawText(TextFormat("Frame Time: %02.02f ms", GetFrameTime()), 10, 30, 20, DARKGRAY);
-            
-
-            EndDrawing();
+        EndDrawing();
     }
 
     CloseWindow();
 
     return 0;
+}
+
+Player InitPlayer(const GameContext* context, int team) {
+    
+    Player player = {
+        .color = (team) ? RED : BLACK,
+        .paddle_size = DEFAULT_PADDLE_SIZE,
+        .position = {(team) ? context->window_size.x*0.9f : 
+                              context->window_size.x*0.1f, 0}
+    };
+
+    player.position.y = context->window_size.y/2.0f - player.paddle_size.y / 2.0f;
+
+    return player;
+}
+
+
+Ball InitBall(const GameContext* context) {
+
+    Ball ball = {
+        .color = BLACK,
+        .size = DEFAULT_BALL_SIZE,
+        .velocity = {0, 0}
+    };
+
+    ball.position.x = context->window_size.x/2.0f - ball.size.x/2.0f;
+    ball.position.y = context->window_size.y/2.0f - ball.size.y/2.0f;
+
+    return ball;
 
 }
