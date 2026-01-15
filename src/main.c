@@ -4,6 +4,7 @@
 #define TEAM_BLACK 0
 #define DEFAULT_PADDLE_SIZE {20, 80}
 #define DEFAULT_BALL_SIZE {20, 20}
+#define GAME_SPEED 4
 
 #define UNUSED(x) (void)(x)
 
@@ -23,12 +24,17 @@ typedef struct Ball {
 
 typedef struct GameContext {
     Vector2 window_size;
+    Player players[2];
+    Ball* ball;
+    int game_speed;
+    int num_players;
     int round;
     
 } GameContext;
 
-Player InitPlayer(const GameContext* context, int team);
-Ball InitBall(const GameContext* context);
+void InitPlayer(GameContext* context, int team);
+Ball InitBall(GameContext* context);
+void UpdateScene(GameContext* context);
 
 int main (void) {
 
@@ -37,25 +43,33 @@ int main (void) {
     const int window_height = 800;
 
     InitWindow(window_width, window_height, "Pong");
-    
+
     GameContext Context = {
-        .window_size = {window_width, window_height}
+        .window_size = {window_width, window_height},
+        .game_speed = GAME_SPEED,
+        .num_players = 2,
+        .round = 1
     };
     
-    Player player1 = InitPlayer(&Context, TEAM_BLACK);
-    Player player2 = InitPlayer(&Context, TEAM_RED);
+    
+    InitPlayer(&Context, TEAM_BLACK); // Player 1
+    InitPlayer(&Context, TEAM_RED);   // Player 2
     
     Ball ball = InitBall(&Context);
-    
+
+
+    SetTargetFPS(30);
 
     while(!WindowShouldClose()) {
 
         ClearBackground(RAYWHITE);
 
+        UpdateScene(&Context);
+
         BeginDrawing();
 
-            DrawRectangleV(player1.position, player1.paddle_size, player1.color);
-            DrawRectangleV(player2.position, player2.paddle_size, player2.color);
+            DrawRectangleV(Context.players[0].position, Context.players[0].paddle_size, Context.players[0].color);
+            DrawRectangleV(Context.players[1].position, Context.players[1].paddle_size, Context.players[1].color);
             DrawRectangleV(ball.position, ball.size, ball.color);
 
         EndDrawing();
@@ -66,22 +80,23 @@ int main (void) {
     return 0;
 }
 
-Player InitPlayer(const GameContext* context, int team) {
+void InitPlayer(GameContext* context, int team) {
     
     Player player = {
         .color = (team) ? RED : BLACK,
         .paddle_size = DEFAULT_PADDLE_SIZE,
         .position = {(team) ? context->window_size.x*0.9f : 
-                              context->window_size.x*0.1f, 0}
+                              context->window_size.x*0.1f, 0.0f}
     };
 
     player.position.y = context->window_size.y/2.0f - player.paddle_size.y / 2.0f;
 
-    return player;
+    if (team == 0) context->players[0] = player;
+    else context->players[1] = player;
 }
 
 
-Ball InitBall(const GameContext* context) {
+Ball InitBall(GameContext* context) {
 
     Ball ball = {
         .color = BLACK,
@@ -93,5 +108,22 @@ Ball InitBall(const GameContext* context) {
     ball.position.y = context->window_size.y/2.0f - ball.size.y/2.0f;
 
     return ball;
+
+}
+
+// Only to be called in the main loop
+void UpdateScene(GameContext* context) { 
+    
+    if (IsKeyPressed(KEY_W) || IsKeyDown(KEY_W)) {
+        context->players[0].position.y -= 1 * context->game_speed;
+    } else if(IsKeyPressed(KEY_S) || IsKeyDown(KEY_S)) {
+        context->players[0].position.y += 1 * context->game_speed;
+    }
+
+     if (IsKeyPressed(KEY_UP) || IsKeyDown(KEY_UP)) {
+        context->players[1].position.y -= 1 * context->game_speed;
+    } else if(IsKeyPressed(KEY_DOWN) || IsKeyDown(KEY_DOWN)) {
+        context->players[1].position.y += 1 * context->game_speed;
+    }
 
 }
