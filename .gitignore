@@ -6,6 +6,3 @@
 !*/
 # Unignore Makefile
 !Makefile
-
-#Unignore .gitignore
-!.gitignore
