@@ -53,6 +53,11 @@ void DrawGameOver(GameContext* context);
 // like. Use variables inside each of the functions recieving the context to help with the
 // typing? 
 
+// FIXME: Handle framerates -> GetFrameTime();
+// FIXME: Game resets incorrectly. After game over pressing space should return
+//        initial game conditions. Currently pressing space at the game over screen
+//        immediately begins a new game. 
+
 int main (void) {
 
 
@@ -130,9 +135,12 @@ void InitBall(GameContext* context) {
 
 }
 
+// FIXME: Game reset -> See note above main
 void GameStart(GameContext* context) {
+
     if (IsKeyPressed(KEY_SPACE) && context->game_over) {
         context->round = 0;
+        context->game_over = 0;
         context->players[0].score = 0;
         context->players[1].score = 0;
     }
@@ -165,10 +173,10 @@ void UpdateScene(GameContext* context) {
     }
     
     // TODO: Move screen edge detection to collision function?
-    if ((IsKeyPressed(KEY_W) || IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
+    if ((IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
         context->players[0].position.y -= 1 * context->game_speed;
         if (context->players[0].position.y < 0) context->players[0].position.y = 0;
-    } else if(IsKeyPressed(KEY_S) || IsKeyDown(KEY_S)) {
+    } else if(IsKeyDown(KEY_S)) {
         context->players[0].position.y += 1 * context->game_speed;
         if (context->players[0].position.y + context->players[0].paddle_size.y > context->window_size.y) {
             
@@ -231,6 +239,7 @@ void HandleCollision(GameContext* context) {
         Is ball top above paddle bottom 
     */
     // Left player detection.
+
     if (context->ball.position.x <= context->players[0].position.x + context->players[0].paddle_size.x &&
         context->ball.position.y + context->ball.size.y >= context->players[0].position.y && 
         context->ball.position.y <= context->players[0].position.y + context->players[0].paddle_size.y) {
@@ -239,8 +248,8 @@ void HandleCollision(GameContext* context) {
 
     }
 
+    
     // Right player detection
-
     if (context->ball.position.x + context->ball.size.x >= context->players[1].position.x &&
         context->ball.position.y + context->ball.size.y >= context->players[1].position.y && 
         context->ball.position.y <= context->players[1].position.y + context->players[1].paddle_size.y){
@@ -251,17 +260,16 @@ void HandleCollision(GameContext* context) {
 
 }
 
+// TODO: Add ball spin 
 void ReflectBall(Ball* ball) {
 
-            ball->velocity.x *= -1;
-            //ball->velocity.y *= -1;
+    ball->velocity.x *= -1;
 
-            // FIXME: Player 1 has global control of ball spin. Add colided with param?
-            if (IsKeyDown(KEY_W)) {
-                ball->velocity.y += 0.3f;
-            } else if (IsKeyDown(KEY_S)) {
-                ball->velocity.y -= 0.3f; 
-            }
+    // if (IsKeyDown(KEY_W)) {
+    //     ball->velocity.y += 0.3f;
+    // } else if (IsKeyDown(KEY_S)) {
+    //     ball->velocity.y -= 0.3f; 
+    // }
 
 }
 
