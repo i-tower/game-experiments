@@ -1,5 +1,5 @@
 #include "raylib.h"
-#include "raymath.h"
+
 
 #define TEAM_RED 1
 #define TEAM_BLACK 0
@@ -40,6 +40,11 @@ void UpdateScene(GameContext* context);
 void GameStart(GameContext* context);
 void HandleCollision(GameContext* context);
 void ReflectBall(Ball* ball);
+
+// FIXME: I don't like passing the game context around and diving deep through multiple
+// references every time i have to write some function to update the ball position or the
+// like. Use variables inside each of the functions recieving the context to help with the
+// typing? 
 
 int main (void) {
 
@@ -132,7 +137,7 @@ void GameStart(GameContext* context) {
 
 void UpdateScene(GameContext* context) { 
     
-
+    // TODO: Move screen edge detection to collision function?
     if ((IsKeyPressed(KEY_W) || IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
         context->players[0].position.y -= 1 * context->game_speed;
         if (context->players[0].position.y < 0) context->players[0].position.y = 0;
