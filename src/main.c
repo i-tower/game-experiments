@@ -13,6 +13,7 @@ typedef struct Player {
     Vector2 position;
     Vector2 paddle_size;
     Color color;
+    int score;
 } Player;
 
 typedef struct Ball {
@@ -30,7 +31,9 @@ typedef struct GameContext {
     int game_speed;
     int num_players;
     int round;
+    int max_score;
     int in_progress;
+    int game_over;
     
 } GameContext;
 
@@ -40,6 +43,10 @@ void UpdateScene(GameContext* context);
 void GameStart(GameContext* context);
 void HandleCollision(GameContext* context);
 void ReflectBall(Ball* ball);
+void Score(GameContext* context, int team);
+void DrawGame(GameContext* context);
+void DrawGameOver(GameContext* context);
+
 
 // FIXME: I don't like passing the game context around and diving deep through multiple
 // references every time i have to write some function to update the ball position or the
@@ -59,7 +66,8 @@ int main (void) {
         .game_speed = GAME_SPEED,
         .num_players = 2,
         .round = 1,
-        .in_progress = 0
+        .in_progress = 0,
+        .game_over = 0,
     };
     
     
@@ -77,17 +85,12 @@ int main (void) {
 
         UpdateScene(&Context);
 
-        BeginDrawing();
+        if (Context.game_over) {
+            DrawGameOver(&Context);
+        } else {
+            DrawGame(&Context);
+        }
 
-            DrawRectangleV(Context.players[0].position, Context.players[0].paddle_size, Context.players[0].color);
-            DrawRectangleV(Context.players[1].position, Context.players[1].paddle_size, Context.players[1].color);
-            DrawRectangleV(Context.ball.position, Context.ball.size, Context.ball.color);
-
-            if (!Context.in_progress) {
-                DrawText("Press space to start", 400, 200, 32, BLACK);
-            }
-
-        EndDrawing();
     }
 
     CloseWindow();
@@ -101,7 +104,8 @@ void InitPlayer(GameContext* context, int team) {
         .color = (team) ? RED : BLACK,
         .paddle_size = DEFAULT_PADDLE_SIZE,
         .position = {(team) ? context->window_size.x*0.9f : 
-                              context->window_size.x*0.1f, 0.0f}
+                              context->window_size.x*0.1f, 0.0f},
+        .score = 0
     };
 
     player.position.y = context->window_size.y/2.0f - player.paddle_size.y / 2.0f;
@@ -127,15 +131,38 @@ void InitBall(GameContext* context) {
 }
 
 void GameStart(GameContext* context) {
+    if (IsKeyPressed(KEY_SPACE) && context->game_over) {
+        context->round = 0;
+        context->players[0].score = 0;
+        context->players[1].score = 0;
+    }
+
+    if (context->round > 0 && context->in_progress == 0) {
+        context->ball.position.x = context->window_size.x/2.0f - context->ball.size.x/2.0f;
+        context->ball.position.y = context->window_size.y/2.0f - context->ball.size.y/2.0f;
+        context->ball.velocity.x = 0;
+        context->ball.velocity.y = 0;
+    }
+
+
 
     if(IsKeyPressed(KEY_SPACE)) {
         context->ball.velocity.x = 2;
         context->in_progress = 1;
-    }
+        context->round++;
+    } 
+    
 }
 
 
 void UpdateScene(GameContext* context) { 
+    
+    if (!context->in_progress) {
+        GameStart(context);
+    } else { 
+        context->ball.position.x += context->ball.velocity.x * context->game_speed;
+        context->ball.position.y += context->ball.velocity.y * context->game_speed;
+    }
     
     // TODO: Move screen edge detection to collision function?
     if ((IsKeyPressed(KEY_W) || IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
@@ -160,16 +187,24 @@ void UpdateScene(GameContext* context) {
         } 
     }
     
-    if (!context->in_progress) {
-        GameStart(context);
-    } else { 
-        // The game is in progress update the ball position as well.
-        context->ball.position.x += context->ball.velocity.x * context->game_speed;
-        context->ball.position.y += context->ball.velocity.y * context->game_speed;
-    }
     
     HandleCollision(context);
 
+}
+
+void Score(GameContext* context, int team) {
+
+    if (!team) {
+        context->players[0].score++;
+    } else {
+        context->players[1].score++;
+    }
+
+    context->in_progress = 0;
+
+    if (context->players[0].score >= 3 || context->players[1].score >= 3) {
+        context->game_over = 1; 
+    }
 }
 
 
@@ -177,9 +212,12 @@ void HandleCollision(GameContext* context) {
 
 
     // Handle screen edge collisions
-    if (context->ball.position.x >= context->window_size.x - context->ball.size.x || context->ball.position.x <= 0) {
-        // Eventually scoring should happen here
-        context->ball.velocity.x *= -1;
+    if (context->ball.position.x >= context->window_size.x - context->ball.size.x) {
+        // Player 1 Scores
+        Score(context, TEAM_BLACK);
+    } else if (context->ball.position.x <= 0) {
+        // Player 2 Scores
+        Score(context, TEAM_RED);
     }
     if (context->ball.position.y >= context->window_size.y - context->ball.size.y || context->ball.position.y <= 0) {
         context->ball.velocity.y *= -1;
@@ -193,7 +231,7 @@ void HandleCollision(GameContext* context) {
         Is ball top above paddle bottom 
     */
     // Left player detection.
-    if (context->ball.position.x <= context->players[0].position.x + context->players->paddle_size.x &&
+    if (context->ball.position.x <= context->players[0].position.x + context->players[0].paddle_size.x &&
         context->ball.position.y + context->ball.size.y >= context->players[0].position.y && 
         context->ball.position.y <= context->players[0].position.y + context->players[0].paddle_size.y) {
 
@@ -218,10 +256,37 @@ void ReflectBall(Ball* ball) {
             ball->velocity.x *= -1;
             //ball->velocity.y *= -1;
 
+            // FIXME: Player 1 has global control of ball spin. Add colided with param?
             if (IsKeyDown(KEY_W)) {
                 ball->velocity.y += 0.3f;
             } else if (IsKeyDown(KEY_S)) {
                 ball->velocity.y -= 0.3f; 
             }
 
+}
+
+void DrawGame(GameContext* Context) {
+    BeginDrawing();
+
+        DrawRectangleV(Context->players[0].position, Context->players[0].paddle_size, Context->players[0].color);
+        DrawRectangleV(Context->players[1].position, Context->players[1].paddle_size, Context->players[1].color);
+        DrawRectangleV(Context->ball.position, Context->ball.size, Context->ball.color);
+
+        if (!Context->in_progress) {
+            DrawText("Press space to start", 400, 200, 32, BLACK);
+        }
+
+        DrawText(TextFormat("Player 1 Score: %i", Context->players[0].score), 50, 30, 32, BLACK);
+        DrawText(TextFormat("Player 2 Score: %i", Context->players[1].score), 850, 30, 32, BLACK);
+
+    EndDrawing();
+}
+ 
+void DrawGameOver(GameContext* context) {
+    BeginDrawing();
+
+        DrawText("Game Over!", 400, 300, 50, BLACK);
+        DrawText(TextFormat("Player %i wins", (context->players[0].score > context->players[1].score) ? 1 : 2), 400, 400, 40, BLACK);
+
+    EndDrawing();
 }
