@@ -13,6 +13,8 @@ typedef struct Player {
     Vector2 position;
     Vector2 paddle_size;
     Color color;
+    int team;
+    int speed;
     int score;
 } Player;
 
@@ -42,7 +44,7 @@ void InitBall(GameContext* context);
 void UpdateScene(GameContext* context);
 void GameStart(GameContext* context);
 void HandleCollision(GameContext* context);
-void ReflectBall(Ball* ball);
+void ReflectBall(Ball* ball, Player* player);
 void Score(GameContext* context, int team);
 void DrawGame(GameContext* context);
 void DrawGameOver(GameContext* context);
@@ -56,7 +58,7 @@ void DrawGameOver(GameContext* context);
 // FIXME: Handle framerates -> GetFrameTime();
 // FIXME: Game resets incorrectly. After game over pressing space should return
 //        initial game conditions. Currently pressing space at the game over screen
-//        immediately begins a new game. 
+//        immediately begins a new game. <<< This seems to be working fine at the moment?
 
 int main (void) {
 
@@ -110,7 +112,8 @@ void InitPlayer(GameContext* context, int team) {
         .paddle_size = DEFAULT_PADDLE_SIZE,
         .position = {(team) ? context->window_size.x*0.9f : 
                               context->window_size.x*0.1f, 0.0f},
-        .score = 0
+        .score = 0,
+        .team = team
     };
 
     player.position.y = context->window_size.y/2.0f - player.paddle_size.y / 2.0f;
@@ -172,12 +175,13 @@ void UpdateScene(GameContext* context) {
         context->ball.position.y += context->ball.velocity.y * context->game_speed;
     }
     
-    // TODO: Move screen edge detection to collision function?
+    // TODO: Move screen edge detection to collision function? Also could factor out
+    //       paddle movement to a paddle speed variable.
     if ((IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
-        context->players[0].position.y -= 1 * context->game_speed;
+        context->players[0].position.y -= 1 * context->game_speed; // paddle movement
         if (context->players[0].position.y < 0) context->players[0].position.y = 0;
     } else if(IsKeyDown(KEY_S)) {
-        context->players[0].position.y += 1 * context->game_speed;
+        context->players[0].position.y += 1 * context->game_speed; // paddle movement
         if (context->players[0].position.y + context->players[0].paddle_size.y > context->window_size.y) {
             
             context->players[0].position.y = context->window_size.y - context->players[0].paddle_size.y;
@@ -232,19 +236,24 @@ void HandleCollision(GameContext* context) {
     }
 
 
-    /* 
-        Paddle collision detection:
+    
+    
+    /* FIXME: Possible for the ball become stuck inside the paddle. 
+    Need to refine collision detection.
+    Reposition the ball to the edge of the paddle at collision? */
+    
+    // Left player detection.
+    
+    /*  Paddle collision detection:
         Is ball left edge left of paddle right edge
         Is ball bottom below paddle top
-        Is ball top above paddle bottom 
-    */
-    // Left player detection.
-
+        Is ball top above paddle bottom */
     if (context->ball.position.x <= context->players[0].position.x + context->players[0].paddle_size.x &&
         context->ball.position.y + context->ball.size.y >= context->players[0].position.y && 
-        context->ball.position.y <= context->players[0].position.y + context->players[0].paddle_size.y) {
+        context->ball.position.y <= context->players[0].position.y + context->players[0].paddle_size.y &&
+        context->ball.position.x + context->ball.size.x >= context->players[0].position.x) {
 
-            ReflectBall(&context->ball);
+            ReflectBall(&context->ball, &context->players[0]);
 
     }
 
@@ -252,16 +261,17 @@ void HandleCollision(GameContext* context) {
     // Right player detection
     if (context->ball.position.x + context->ball.size.x >= context->players[1].position.x &&
         context->ball.position.y + context->ball.size.y >= context->players[1].position.y && 
-        context->ball.position.y <= context->players[1].position.y + context->players[1].paddle_size.y){
+        context->ball.position.y <= context->players[1].position.y + context->players[1].paddle_size.y &&
+        context->ball.position.x <= context->players[1].position.x + context->players[1].paddle_size.x){
 
-            ReflectBall(&context->ball);
+            ReflectBall(&context->ball, &context->players[0]);
             
         }
 
 }
 
 // TODO: Add ball spin 
-void ReflectBall(Ball* ball) {
+void ReflectBall(Ball* ball, Player* player) {
 
     ball->velocity.x *= -1;
 
