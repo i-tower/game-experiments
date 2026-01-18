@@ -157,14 +157,21 @@ void ResetBall(GameContext* context) {
 void GameStart(GameContext* context) {
 
     ResetBall(context);
-
+    // INPROGRESS: Give ball a random direction on launch
     if(IsKeyPressed(KEY_SPACE)) {
-        context->ball.speed.x = 2;
+        if (GetRandomValue(0, 1)) {
+            context->ball.speed.x = 2;
+        } else {
+            context->ball.speed.x = -2;
+        }
         context->round++;
         context->state = PLAYING;
     } 
     
 }
+
+// TODO: Add serving game state
+// void Serving(GameContext* context, Player* player);
 
 void GameOver(GameContext* context) {
 
@@ -256,8 +263,8 @@ void HandleCollision(GameContext* context) {
     
     
     /* FIXME: Possible for the ball become stuck inside the paddle. 
-    Need to refine collision detection.
-    Reposition the ball to the edge of the paddle at collision? */
+       Need to refine collision detection.
+       Reposition the ball to the edge of the paddle at collision? */
     
     // Left player detection.
     
