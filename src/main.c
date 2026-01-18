@@ -20,22 +20,27 @@ typedef struct Player {
 
 typedef struct Ball {
     Vector2 position;
-    Vector2 velocity;
+    Vector2 speed;
     Vector2 size;
     Color color;
     
 } Ball;
 
+typedef enum GameState {
+    PLAYING,
+    ROUND_OVER,
+    GAME_OVER,
+} GameState;
+
 typedef struct GameContext {
     Vector2 window_size;
     Player players[2];
     Ball ball;
+    GameState state;
     int game_speed;
     int num_players;
     int round;
     int max_score;
-    int in_progress;
-    int game_over;
     
 } GameContext;
 
@@ -43,11 +48,13 @@ void InitPlayer(GameContext* context, int team);
 void InitBall(GameContext* context);
 void UpdateScene(GameContext* context);
 void GameStart(GameContext* context);
+void GameOver(GameContext* context);
 void HandleCollision(GameContext* context);
 void ReflectBall(Ball* ball, Player* player);
 void Score(GameContext* context, int team);
 void DrawGame(GameContext* context);
 void DrawGameOver(GameContext* context);
+void ResetBall(GameContext* context);
 
 
 // FIXME: I don't like passing the game context around and diving deep through multiple
@@ -56,9 +63,6 @@ void DrawGameOver(GameContext* context);
 // typing? 
 
 // FIXME: Handle framerates -> GetFrameTime();
-// FIXME: Game resets incorrectly. After game over pressing space should return
-//        initial game conditions. Currently pressing space at the game over screen
-//        immediately begins a new game. <<< This seems to be working fine at the moment?
 
 int main (void) {
 
@@ -72,9 +76,9 @@ int main (void) {
         .window_size = {window_width, window_height},
         .game_speed = GAME_SPEED,
         .num_players = 2,
-        .round = 1,
-        .in_progress = 0,
-        .game_over = 0,
+        .round = 0,
+        .state = ROUND_OVER,
+        .max_score = 3
     };
     
     
@@ -92,7 +96,7 @@ int main (void) {
 
         UpdateScene(&Context);
 
-        if (Context.game_over) {
+        if (Context.state == GAME_OVER) {
             DrawGameOver(&Context);
         } else {
             DrawGame(&Context);
@@ -128,7 +132,7 @@ void InitBall(GameContext* context) {
     Ball ball = {
         .color = BLACK,
         .size = DEFAULT_BALL_SIZE,
-        .velocity = {0.0f, 0.0f}
+        .speed = {0.0f, 0.0f}
     };
 
     ball.position.x = context->window_size.x/2.0f - ball.size.x/2.0f;
@@ -138,41 +142,52 @@ void InitBall(GameContext* context) {
 
 }
 
-// FIXME: Game reset -> See note above main
-void GameStart(GameContext* context) {
+void ResetBall(GameContext* context) {
 
-    if (IsKeyPressed(KEY_SPACE) && context->game_over) {
-        context->round = 0;
-        context->game_over = 0;
-        context->players[0].score = 0;
-        context->players[1].score = 0;
-    }
-
-    if (context->round > 0 && context->in_progress == 0) {
+    if (context->round >= 0) {
         context->ball.position.x = context->window_size.x/2.0f - context->ball.size.x/2.0f;
         context->ball.position.y = context->window_size.y/2.0f - context->ball.size.y/2.0f;
-        context->ball.velocity.x = 0;
-        context->ball.velocity.y = 0;
+        context->ball.speed.x = 0;
+        context->ball.speed.y = 0;
     }
 
+}
 
+
+void GameStart(GameContext* context) {
+
+    ResetBall(context);
 
     if(IsKeyPressed(KEY_SPACE)) {
-        context->ball.velocity.x = 2;
-        context->in_progress = 1;
+        context->ball.speed.x = 2;
         context->round++;
+        context->state = PLAYING;
     } 
     
 }
 
+void GameOver(GameContext* context) {
+
+    ResetBall(context);
+
+    if (IsKeyPressed(KEY_SPACE)) {
+        context->round = 0;
+        context->players[0].score = 0;
+        context->players[1].score = 0;
+        context->state = ROUND_OVER;
+    }
+
+}
 
 void UpdateScene(GameContext* context) { 
     
-    if (!context->in_progress) {
+    if (context->state == ROUND_OVER) {
         GameStart(context);
-    } else { 
-        context->ball.position.x += context->ball.velocity.x * context->game_speed;
-        context->ball.position.y += context->ball.velocity.y * context->game_speed;
+    } else if (context->state == PLAYING) { 
+        context->ball.position.x += context->ball.speed.x * context->game_speed;
+        context->ball.position.y += context->ball.speed.y * context->game_speed;
+    } else if (context->state == GAME_OVER) {
+        GameOver(context);
     }
     
     // TODO: Move screen edge detection to collision function? Also could factor out
@@ -206,16 +221,18 @@ void UpdateScene(GameContext* context) {
 
 void Score(GameContext* context, int team) {
 
+    const int max_score = context->max_score;
+
     if (!team) {
         context->players[0].score++;
     } else {
         context->players[1].score++;
     }
 
-    context->in_progress = 0;
+    context->state = ROUND_OVER;
 
-    if (context->players[0].score >= 3 || context->players[1].score >= 3) {
-        context->game_over = 1; 
+    if (context->players[0].score >= max_score || context->players[1].score >= max_score) {
+        context->state = GAME_OVER; 
     }
 }
 
@@ -232,7 +249,7 @@ void HandleCollision(GameContext* context) {
         Score(context, TEAM_RED);
     }
     if (context->ball.position.y >= context->window_size.y - context->ball.size.y || context->ball.position.y <= 0) {
-        context->ball.velocity.y *= -1;
+        context->ball.speed.y *= -1;
     }
 
 
@@ -270,10 +287,11 @@ void HandleCollision(GameContext* context) {
 
 }
 
+
 // TODO: Add ball spin 
 void ReflectBall(Ball* ball, Player* player) {
 
-    ball->velocity.x *= -1;
+    ball->speed.x *= -1;
 
     // if (IsKeyDown(KEY_W)) {
     //     ball->velocity.y += 0.3f;
@@ -283,6 +301,7 @@ void ReflectBall(Ball* ball, Player* player) {
 
 }
 
+
 void DrawGame(GameContext* Context) {
     BeginDrawing();
 
@@ -290,7 +309,7 @@ void DrawGame(GameContext* Context) {
         DrawRectangleV(Context->players[1].position, Context->players[1].paddle_size, Context->players[1].color);
         DrawRectangleV(Context->ball.position, Context->ball.size, Context->ball.color);
 
-        if (!Context->in_progress) {
+        if (Context->state == ROUND_OVER) {
             DrawText("Press space to start", 400, 200, 32, BLACK);
         }
 
