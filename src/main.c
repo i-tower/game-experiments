@@ -28,7 +28,7 @@ typedef struct Ball {
 
 typedef enum GameState {
     PLAYING,
-    ROUND_OVER,
+    GAME_START,
     GAME_OVER,
 } GameState;
 
@@ -41,6 +41,7 @@ typedef struct GameContext {
     int num_players;
     int round;
     int max_score;
+    Player* last_scored;
     
 } GameContext;
 
@@ -55,6 +56,7 @@ void Score(GameContext* context, int team);
 void DrawGame(GameContext* context);
 void DrawGameOver(GameContext* context);
 void ResetBall(GameContext* context);
+void Serve(GameContext* context);
 
 
 // FIXME: I don't like passing the game context around and diving deep through multiple
@@ -77,7 +79,7 @@ int main (void) {
         .game_speed = GAME_SPEED,
         .num_players = 2,
         .round = 0,
-        .state = ROUND_OVER,
+        .state = GAME_START,
         .max_score = 3
     };
     
@@ -158,6 +160,12 @@ void GameStart(GameContext* context) {
 
     ResetBall(context);
     // INPROGRESS: Give ball a random direction on launch
+
+    if (context->round > 0) {
+        Serve(context);
+        return; // gross
+    }
+
     if(IsKeyPressed(KEY_SPACE)) {
         if (GetRandomValue(0, 1)) {
             context->ball.speed.x = 2;
@@ -171,7 +179,26 @@ void GameStart(GameContext* context) {
 }
 
 // TODO: Add serving game state
-// void Serving(GameContext* context, Player* player);
+void Serve(GameContext* context) {
+    Ball* ball = &context->ball;
+    Player* player = context->last_scored;
+    
+    if (player->team == TEAM_BLACK) {
+        ball->position.x = player->position.x + player->paddle_size.x + 20;
+    } else {
+        ball->position.x = player->position.x - player->paddle_size.x - 20;
+    }
+    ball->position.y = player->position.y + (player->paddle_size.y / 2);
+    
+    if (IsKeyPressed(KEY_SPACE)) {
+        if (player->team == TEAM_BLACK) {
+            ball->speed.x = 2;
+        } else {
+            ball->speed.x = -2;
+        }
+        context->state = PLAYING;
+    }
+}
 
 void GameOver(GameContext* context) {
 
@@ -181,14 +208,14 @@ void GameOver(GameContext* context) {
         context->round = 0;
         context->players[0].score = 0;
         context->players[1].score = 0;
-        context->state = ROUND_OVER;
+        context->state = GAME_START;
     }
 
 }
 
 void UpdateScene(GameContext* context) { 
     
-    if (context->state == ROUND_OVER) {
+    if (context->state == GAME_START) {
         GameStart(context);
     } else if (context->state == PLAYING) { 
         context->ball.position.x += context->ball.speed.x * context->game_speed;
@@ -232,11 +259,13 @@ void Score(GameContext* context, int team) {
 
     if (!team) {
         context->players[0].score++;
+        context->last_scored = &context->players[0];
     } else {
         context->players[1].score++;
+        context->last_scored = &context->players[1];
     }
 
-    context->state = ROUND_OVER;
+    context->state = GAME_START;
 
     if (context->players[0].score >= max_score || context->players[1].score >= max_score) {
         context->state = GAME_OVER; 
@@ -316,7 +345,7 @@ void DrawGame(GameContext* Context) {
         DrawRectangleV(Context->players[1].position, Context->players[1].paddle_size, Context->players[1].color);
         DrawRectangleV(Context->ball.position, Context->ball.size, Context->ball.color);
 
-        if (Context->state == ROUND_OVER) {
+        if (Context->state == GAME_START) {
             DrawText("Press space to start", 400, 200, 32, BLACK);
         }
 
