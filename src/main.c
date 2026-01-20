@@ -11,6 +11,7 @@
 
 typedef struct Player {
     Vector2 position;
+    Vector2 prev_position;
     Vector2 paddle_size;
     Color color;
     int team;
@@ -226,6 +227,10 @@ void UpdateScene(GameContext* context) {
     
     // TODO: Move screen edge detection to collision function? Also could factor out
     //       paddle movement to a paddle speed variable.
+
+    context->players[0].prev_position = context->players[0].position;
+    context->players[1].prev_position = context->players[1].position;
+
     if ((IsKeyDown(KEY_W)) && context->players[0].position.y >= 0) {
         context->players[0].position.y -= 1 * context->game_speed; // paddle movement
         if (context->players[0].position.y < 0) context->players[0].position.y = 0;
@@ -317,7 +322,7 @@ void HandleCollision(GameContext* context) {
         context->ball.position.y <= context->players[1].position.y + context->players[1].paddle_size.y &&
         context->ball.position.x <= context->players[1].position.x + context->players[1].paddle_size.x){
 
-            ReflectBall(&context->ball, &context->players[0]);
+            ReflectBall(&context->ball, &context->players[1]);
             
         }
 
@@ -326,15 +331,16 @@ void HandleCollision(GameContext* context) {
 
 // TODO: Add ball spin 
 void ReflectBall(Ball* ball, Player* player) {
+    float paddle_speed = player->position.y - player->prev_position.y;
+    float max_spin = 1.5;
+    float min_spin = -1.5;
+    float fuzz = GetRandomValue(95, 105) / 100.0f;
 
     ball->speed.x *= -1;
-
-    // if (IsKeyDown(KEY_W)) {
-    //     ball->velocity.y += 0.3f;
-    // } else if (IsKeyDown(KEY_S)) {
-    //     ball->velocity.y -= 0.3f; 
-    // }
-
+    ball->speed.y += paddle_speed * 0.1 * fuzz;
+    
+    if (ball->speed.y > max_spin) ball->speed.y = max_spin;
+    if (ball->speed.y < min_spin) ball->speed.y = min_spin;
 }
 
 
